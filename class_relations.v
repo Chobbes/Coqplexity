@@ -54,7 +54,7 @@ Proof.
     exists sc1. exists sc2. exists (Nat.max n1 n2).
 
     intros n Hmax.
-    apply Nat.max_lub_lt_iff in Hmax. destruct Hmax as [Hn1 Hn2].
+    apply Nat.max_lub_lt_iff in Hmax as [Hn1 Hn2].
     destruct sc1 as [c1 Hc1]. destruct sc2 as [c2 Hc2]. simpl in *.
 
     pose proof HOmega n Hn1 as [H0g Hf_c1_g].
@@ -90,17 +90,32 @@ Qed.
 
 Theorem Limit_LittleO :
   forall (f g : nat -> R),
+    (exists n0, forall n, n > n0 -> (f n > 0)%R /\ (g n > 0)%R) -> 
     is_lim_seq (fun n => (f n / g n)%R) 0%R -> f ∈ o(g).
 Proof.
-  unfold_limits. intros f g H.
+  unfold is_lim_seq.
+  unfold_limits. intros f g Hres H.
   unfold_complexity. intros [c Hc]. simpl in *.
 
   pose proof H (fun fg => (fg < c)%R) as H. simpl in H.
 
   destruct H. exists (mkposreal c Hc).
-  intros y H. simpl in H. admit.
-  
-  exists x. intros n H0.
-  unfold gt in H0. apply Nat.lt_le_incl in H0.
-  pose proof H n H0 as H.
-Abort.
+  intros y H. simpl in *. apply Rabs_def2 in H as [Hyc Hcy].
+
+  replace y with (minus y 0)%R.
+  apply Hyc. replace 0%R with (zero : R). apply minus_zero_r.
+  reflexivity.
+
+  destruct Hres as [n0_res Hres].
+  exists (Nat.max x n0_res).
+
+  intros n Hmax. apply Nat.max_lub_lt_iff in Hmax as [Hx Hn0].
+  apply Nat.lt_le_incl in Hx.
+
+  pose proof Hres n Hn0 as [Hfn0 Hgn0].
+  pose proof H n Hx as H.
+
+  split.
+  - lra.
+  - apply Rlt_div_l; assumption.
+Qed.
