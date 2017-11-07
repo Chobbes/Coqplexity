@@ -155,3 +155,49 @@ Proof.
   - apply Rlt_div_r; try lra. pose proof Rle_lt_trans 0 (f n) (eps * g n)%R H0f Hfg.
     apply (Rmult_lt_reg_r eps); lra.
 Qed.
+
+
+(* Converse is not necessarily true, since the limit need not exist. *)
+Theorem Limit_BigTheta :
+  forall (f g : nat -> R),
+    (exists n0, forall n, n > n0 -> (f n > 0)%R /\ (g n > 0)%R) ->
+    (exists (c : R), (c > 0)%R /\ is_lim_seq (fun n => (f n / g n)%R) c) ->
+    f ∈ Θ(g).
+Proof.
+  unfold_limits.
+  intros f g [n Hres] [c [Hc Hlim]].
+
+  assert (c/2 > 0)%R as Hc_2 by lra.
+  pose proof Hlim (fun fg => (c/2 < fg < 3 * c / 2)%R) as H. simpl in H.
+  destruct H.
+
+  - exists (mkposreal (c/2)%R Hc_2). intros y H. simpl in *.
+    apply Rabs_lt_between in H as [Hl Hr].
+
+    apply Rlt_minus_l in Hl.
+    apply Rlt_minus_l in Hr.
+
+    rewrite <- Ropp_plus_minus_distr in Hl.
+    rewrite Ropp_plus_distr in Hl. rewrite Ropp_involutive in Hl.
+
+    lra.
+  - unfold_complexity.
+    rename x into N.
+
+    assert (3 * c / 2 > 0)%R as H3c_2 by lra.
+    exists (exist _ (c/2)%R Hc_2). exists (exist _ (3 * c / 2)%R H3c_2). exists (Nat.max N n).
+
+    simpl.
+
+    intros n0 Hmax. apply Nat.max_lub_lt_iff in Hmax as [HN Hn0].
+
+    pose proof Hres n0 Hn0 as Hres. destruct Hres as [Hf0 Hg0].
+
+    split.
+    + apply Rlt_le. apply Rmult_lt_0_compat; lra.
+    + apply Nat.lt_le_incl in HN. pose proof H n0 HN as H.
+      destruct H as [Hc2f Hf3c2].
+      split; apply Rlt_le.
+      * apply Rlt_div_r; lra.
+      * apply Rlt_div_l; lra.
+Qed.
