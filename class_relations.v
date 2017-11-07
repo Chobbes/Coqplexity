@@ -69,6 +69,9 @@ Proof.
 Qed.
 
 
+Lemma gt0 : (1 > 0)%R. Proof. lra. Qed.
+
+
 Theorem LittleO_BigO :
   forall (f g : nat -> R),
     f ∈ o(g) -> f ∈ O(g).
@@ -76,7 +79,6 @@ Proof.
   unfold LittleO. unfold BigO.
   intros f g Ho.
 
-  Lemma gt0 : (1 > 0)%R. Proof. lra. Qed.
   pose proof (exist _ 1%R gt0) as sc.
   
   pose proof Ho sc as Ho. destruct Ho as [n0 Ho].
@@ -118,4 +120,38 @@ Proof.
   split.
   - lra.
   - apply Rlt_div_l; assumption.
+Qed.
+
+
+Theorem LittleO_Limit :
+  forall (f g : nat -> R),
+    f ∈ o(g) ->
+    is_lim_seq (fun n => (f n / g n)%R) 0%R.
+Proof.
+  unfold_complexity.
+  unfold_limits.
+  intros f g Ho P Hball.
+
+  unfold locally in Hball. simpl in *. destruct Hball as [eps Hball].
+  unfold ball in *. simpl in *. unfold AbsRing_ball in *. simpl in *.
+
+  destruct eps as [eps Heps]. simpl in *.
+  pose proof Ho (exist _ eps Heps) as Ho. destruct Ho as [n0 Ho].
+
+  exists (S n0).
+  intros n Hn0n. simpl in *.
+
+  apply Hball.
+  replace 0%R with (zero: R); try reflexivity. rewrite minus_zero_r.
+
+  apply -> Nat.le_succ_l in Hn0n.
+  pose proof Ho n Hn0n as [H0f Hfg].
+
+  apply Rabs_def1.
+  apply Rlt_div_l.
+  - pose proof Rle_lt_trans 0 (f n) (eps * g n)%R H0f Hfg.
+    apply (Rmult_lt_reg_r eps); lra.
+  - lra.
+  - apply Rlt_div_r; try lra. pose proof Rle_lt_trans 0 (f n) (eps * g n)%R H0f Hfg.
+    apply (Rmult_lt_reg_r eps); lra.
 Qed.
