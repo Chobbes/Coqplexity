@@ -1,3 +1,4 @@
+Require Import Coq.Program.Basics.
 Require Import Coq.Reals.Reals.
 Require Import Coq.Reals.RIneq.
 Require Import Coquelicot.Coquelicot.
@@ -6,34 +7,40 @@ Require Import Psatz.
 Require Import Omega.
 Require Import classes_sigma.
 Require Import tactics.
+Require Import ord.
 
-Local Open Scope R_scope.
-Local Open Scope nat_scope.
+
+Local Open Scope Ord_scope.
 
 
 Lemma BigTheta_BigO :
-  forall (f g : nat -> R),
+  forall {A} `{Ord A} (f g : A -> R),
     f ∈ Θ(g) -> f ∈ O(g).
 Proof.
   unfold BigTheta. unfold BigO.
-  intros f g [c1 [c2 [n0 HTheta]]].
+  intros A HOrd f g [c1 [c2 [n0 HTheta]]].
   exists c2. exists n0.
   intros n Hn_n0.
-  pose proof HTheta n Hn_n0.
-  split; lra. 
+  pose proof HTheta n Hn_n0 as [H0 [H1 H2]].
+
+  split; ord_lra.
 Qed.
 
 
 Lemma BigTheta_BigOmega :
-  forall (f g : nat -> R),
+  forall {A} `{Ord A} (f g : A -> R),
     f ∈ Θ(g) -> f ∈ Ω(g).
 Proof.
   unfold BigTheta. unfold BigOmega.
-  intros f g [c1 [c2 [n0 HTheta]]].
+  intros A HOrd f g [c1 [c2 [n0 HTheta]]].
   exists c1. exists n0.
   intros n Hn_n0.
   destruct c1 as [c1 Hc1]. simpl in *.
   pose proof HTheta n Hn_n0 as [H0g [Hc1g Hc2g]].
+
+  unfold_ord in *.
+  simpl in *.
+
   split.
   - apply Rmult_le_reg_l with (r:=c1); lra.
   - lra.
@@ -41,30 +48,32 @@ Qed.
 
 
 Theorem BigTheta_is_BigO_and_BigOmega :
-  forall (f g : nat -> R),
+  forall {A} `{Ord A} (f g : A -> R),
     f ∈ O(g) /\ f ∈ Ω(g) <-> f ∈ Θ(g).
 Proof.
-  intros f g.
+  intros A HOrd f g.
   split. {
     intros [[sc2 [n2 HO]] [sc1 [n1 HOmega]]].
     simpl in *.
 
     unfold BigTheta.
     
-    exists sc1. exists sc2. exists (Nat.max n1 n2).
+    exists sc1. exists sc2. exists (max n1 n2).
 
     intros n Hmax.
-    apply Nat.max_lub_lt_iff in Hmax as [Hn1 Hn2].
+    apply max_lub_lt_iff in Hmax as [Hn1 Hn2].
     destruct sc1 as [c1 Hc1]. destruct sc2 as [c2 Hc2]. simpl in *.
 
     pose proof HOmega n Hn1 as [H0g Hf_c1_g].
     pose proof HO n Hn2 as [H0f Hf_c2_g].
 
+    unfold_ord in *.
+    
     split.
     - apply Rmult_le_pos; lra.
     - split; lra.
   } {
-    auto using BigTheta_BigO, BigTheta_BigOmega.
+    auto using (@BigTheta_BigO A), (@BigTheta_BigOmega A).
   }
 Qed.
 
@@ -73,11 +82,11 @@ Lemma gt0 : (1 > 0)%R. Proof. lra. Qed.
 
 
 Theorem LittleO_BigO :
-  forall (f g : nat -> R),
+  forall {A} `{Ord A} (f g : A -> R),
     f ∈ o(g) -> f ∈ O(g).
 Proof.
   unfold LittleO. unfold BigO.
-  intros f g Ho.
+  intros A HOrd f g Ho.
 
   pose proof (exist _ 1%R gt0) as sc.
   
@@ -95,7 +104,6 @@ Theorem Limit_LittleO :
     (exists n0, forall n, n > n0 -> (f n > 0)%R /\ (g n > 0)%R) -> 
     is_lim_seq (fun n => (f n / g n)%R) 0%R -> f ∈ o(g).
 Proof.
-  unfold is_lim_seq.
   unfold_limits. intros f g Hres H.
   unfold_complexity. intros [c Hc]. simpl in *.
 
@@ -116,6 +124,8 @@ Proof.
 
   pose proof Hres n Hn0 as [Hfn0 Hgn0].
   pose proof H n Hx as H.
+
+  unfold_ord.
 
   split.
   - lra.
@@ -152,7 +162,7 @@ Proof.
   - pose proof Rle_lt_trans 0 (f n) (eps * g n)%R H0f Hfg.
     apply (Rmult_lt_reg_r eps); lra.
   - lra.
-  - apply Rlt_div_r; try lra. pose proof Rle_lt_trans 0 (f n) (eps * g n)%R H0f Hfg.
+  - apply Rlt_div_r; try ord_lra. pose proof Rle_lt_trans 0 (f n) (eps * g n)%R H0f Hfg.
     apply (Rmult_lt_reg_r eps); lra.
 Qed.
 
