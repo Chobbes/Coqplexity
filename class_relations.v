@@ -211,3 +211,141 @@ Proof.
       * apply Rlt_div_r; lra.
       * apply Rlt_div_l; lra.
 Qed.
+
+
+Lemma lt_0_Ropp :
+  forall (b : R),
+    (b < 0)%R -> exists c, (Ropp c = b /\ c > 0)%R.
+Proof.
+  intros b H.
+  exists (-b). split; lra.
+Qed.
+
+
+Lemma c_0_lt :
+  forall (x : R),
+    (0 < x)%R -> exists c, (0 < c < x)%R.
+Proof.
+  intros x H. exists (x/2).
+  lra.
+Qed.
+
+
+Lemma lt_0_c :
+  forall (x : R),
+    (exists c, (0 < c < x)%R) -> (0 < x)%R.
+Proof.
+  intros x [c [H0c Hcx]].
+  lra.
+Qed.
+
+
+Lemma gt_neq_1 :
+  forall (n : nat),
+    (n > 0 -> n <> 1 -> 1 < n)%nat.
+Proof.
+  intros n Hgt0 Hne1.
+  induction n; intuition.
+Qed.
+
+
+Lemma INR_1:
+  1%R = INR 1.
+Proof.
+  reflexivity.
+Qed.
+
+
+Theorem BigO_power_nat :
+  forall (a b : nat),
+    a <= b -> (fun (x : nat) => (INR x) ^ a) ∈ O(fun (x : nat) => (INR x) ^ b).
+Proof.
+  intros a b H.
+  unfold_complexity.
+
+  exists (exist _ 1 gt0). exists 0%nat.
+  intros n H0.
+
+  simpl.
+  unfold_ord in *.
+
+  split.
+  - left. apply pow_lt. apply lt_0_INR. apply H0.
+  - rewrite Rmult_1_l.
+    apply Rle_pow. rewrite INR_1. apply le_INR.
+    omega.
+  - assumption.
+Qed.
+
+
+Theorem BigO_refl :
+  forall (f : nat -> R),
+    (exists n0, forall n, (n > n0)%nat -> (f n >= 0)%R) ->
+    f ∈ O(f).
+Proof.
+  intros f [n0 H].
+
+  unfold_complexity.
+
+  exists (exist _ 1 gt0). exists n0.
+
+  intros n Hnn0.
+
+  simpl. unfold_ord. split; try lra.
+  apply Rge_le. auto.
+Qed.
+
+
+Theorem BigO_trans :
+  forall (f1 f2 g : nat -> R),
+    f1 ∈ O(f2) -> f2 ∈ O(g) -> f1 ∈ O(g).
+Proof.
+  unfold_complexity.
+  intros f1 f2 g [[c1 Hc1] [n1 Hf1]] [[c2 Hc2] [n2 Hf2]].
+
+  simpl in *.
+  unfold_ord in *.
+
+  assert (c1 * c2 > 0)%R as Hc by (apply Rmult_lt_0_compat; lra).
+  exists (exist _ (c1 * c2)%R Hc).
+
+  exists (Nat.max n1 n2). intros n Hmax. apply Nat.max_lub_lt_iff in Hmax as [Hn1 Hn2].
+
+  pose proof Hf1 n Hn1 as [Hf1_ge_0 Hf1f2].
+  pose proof Hf2 n Hn2 as [Hf2_ge_0 Hf2g].
+
+  simpl in *.
+  lt_fix.
+
+  split.
+  - assumption.
+  - apply (Rle_trans (f1 n) (c1 * f2 n)). assumption.
+    replace (c1 * c2 * g n)%R with (c1 * (c2 * g n))%R by lra.
+    apply (Rmult_le_compat_l c1 (f2 n) (c2 * g n)); lra.
+Qed.
+
+
+
+Theorem BigO_add_nat :
+  forall (f1 f2 g : nat -> R),
+    f1 ∈ O(g) -> f2 ∈ O(g) -> (fun n => f1 n + f2 n) ∈ O(g).
+Proof.
+  unfold_complexity.
+  intros f1 f2 g [[c1 Hc1] [n1 Hf1]] [[c2 Hc2] [n2 Hf2]].
+
+  simpl in *.
+  unfold_ord in *.
+
+  assert (c1 + c2 > 0)%R as Hc by lra.
+  exists (exist _ (c1 + c2)%R Hc).
+
+  exists (Nat.max n1 n2). intros n Hmax. apply Nat.max_lub_lt_iff in Hmax as [Hn1 Hn2].
+
+  pose proof (Hf1 n Hn1) as Hf1.
+  pose proof (Hf2 n Hn2) as Hf2.
+
+  simpl in *.
+  lt_fix.
+
+  lra.
+Qed.
