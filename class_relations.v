@@ -21,9 +21,9 @@ Proof.
   intros A HOrd f g [c1 [c2 [n0 HTheta]]].
   exists c2. exists n0.
   intros n Hn_n0.
-  pose proof HTheta n Hn_n0 as [H0 [H1 H2]].
+  pose proof HTheta n Hn_n0 as [H0 H1].
 
-  split; ord_lra.
+  simpl in *. assumption.
 Qed.
 
 
@@ -36,14 +36,10 @@ Proof.
   exists c1. exists n0.
   intros n Hn_n0.
   destruct c1 as [c1 Hc1]. simpl in *.
-  pose proof HTheta n Hn_n0 as [H0g [Hc1g Hc2g]].
+  pose proof HTheta n Hn_n0 as [Hc1g Hc2g].
 
-  unfold_ord in *.
-  simpl in *.
-
-  split.
-  - apply Rmult_le_reg_l with (r:=c1); lra.
-  - lra.
+  apply Rle_ge.
+  assumption.
 Qed.
 
 
@@ -64,14 +60,12 @@ Proof.
     apply max_lub_lt_iff in Hmax as [Hn1 Hn2].
     destruct sc1 as [c1 Hc1]. destruct sc2 as [c2 Hc2]. simpl in *.
 
-    pose proof HOmega n Hn1 as [H0g Hf_c1_g].
-    pose proof HO n Hn2 as [H0f Hf_c2_g].
+    pose proof HOmega n Hn1 as Hf_c1_g.
+    pose proof HO n Hn2 as Hf_c2_g.
 
     unfold_ord in *.
-    
-    split.
-    - apply Rmult_le_pos; lra.
-    - split; lra.
+
+    split; assumption.
   } {
     auto using (@BigTheta_BigO A), (@BigTheta_BigOmega A).
   }
@@ -92,19 +86,20 @@ Proof.
   
   pose proof Ho sc as Ho. destruct Ho as [n0 Ho].
   exists sc. exists n0.
-  
-  split.
-  - apply Ho. auto.
-  - apply Rlt_le. apply Ho. auto.
+
+  unfold_ord in *.
+
+  intros n H.
+  apply Rlt_le. auto.
 Qed.
 
 
 Theorem Limit_LittleO :
   forall (f g : nat -> R),
-    (exists n0, forall n, n > n0 -> (f n > 0)%R /\ (g n > 0)%R) -> 
-    is_lim_seq (fun n => (f n / g n)%R) 0%R -> f ∈ o(g).
+    (exists n0, forall n, n > n0 -> Rabs (g n) > 0) ->
+    is_lim_seq (fun n => (Rabs (f n) / Rabs (g n))%R) 0%R -> f ∈ o(g).
 Proof.
-  unfold_limits. intros f g Hres H.
+  unfold_limits. intros f g [n0 Hres] H.
   unfold_complexity. intros [c Hc]. simpl in *.
 
   pose proof H (fun fg => (fg < c)%R) as H. simpl in H.
@@ -116,27 +111,22 @@ Proof.
   apply Hyc. replace 0%R with (zero : R). apply minus_zero_r.
   reflexivity.
 
-  destruct Hres as [n0_res Hres].
-  exists (Nat.max x n0_res).
+  exists (Nat.max x n0).
 
   intros n Hmax. apply Nat.max_lub_lt_iff in Hmax as [Hx Hn0].
   apply Nat.lt_le_incl in Hx.
 
-  pose proof Hres n Hn0 as [Hfn0 Hgn0].
   pose proof H n Hx as H.
 
-  unfold_ord.
-
-  split.
-  - lra.
-  - apply Rlt_div_l; assumption.
+  apply Rlt_div_l. apply Hres. auto.
+  assumption.
 Qed.
 
 
 Theorem LittleO_Limit :
   forall (f g : nat -> R),
     f ∈ o(g) ->
-    is_lim_seq (fun n => (f n / g n)%R) 0%R.
+    is_lim_seq (fun n => (Rabs (f n) / Rabs (g n))%R) 0%R.
 Proof.
   unfold_complexity.
   unfold_limits.
@@ -155,14 +145,17 @@ Proof.
   replace 0%R with (zero: R); try reflexivity. rewrite minus_zero_r.
 
   apply -> Nat.le_succ_l in Hn0n.
-  pose proof Ho n Hn0n as [H0f Hfg].
+  pose proof Ho n Hn0n as Hfg.
+
+  unfold_ord in *.
+  assert (0 <= Rabs (f n)) as H0f by apply Rabs_pos.
 
   apply Rabs_def1.
   apply Rlt_div_l.
-  - pose proof Rle_lt_trans 0 (f n) (eps * g n)%R H0f Hfg.
+  - pose proof Rle_lt_trans 0 (Rabs (f n)) (eps * Rabs (g n))%R H0f Hfg.
     apply (Rmult_lt_reg_r eps); lra.
   - lra.
-  - apply Rlt_div_r; try ord_lra. pose proof Rle_lt_trans 0 (f n) (eps * g n)%R H0f Hfg.
+  - apply Rlt_div_r; try ord_lra. pose proof Rle_lt_trans 0 (Rabs (f n)) (eps * Rabs (g n))%R H0f Hfg.
     apply (Rmult_lt_reg_r eps); lra.
 Qed.
 
@@ -170,8 +163,8 @@ Qed.
 (* Converse is not necessarily true, since the limit need not exist. *)
 Theorem Limit_BigTheta :
   forall (f g : nat -> R),
-    (exists n0, forall n, n > n0 -> (f n > 0)%R /\ (g n > 0)%R) ->
-    (exists (c : R), (c > 0)%R /\ is_lim_seq (fun n => (f n / g n)%R) c) ->
+    (exists n0, forall n, n > n0 -> Rabs (g n) > 0) ->
+    (exists (c : R), (c > 0)%R /\ is_lim_seq (fun n => (Rabs (f n) / Rabs (g n))%R) c) ->
     f ∈ Θ(g).
 Proof.
   unfold_limits.
@@ -201,15 +194,14 @@ Proof.
 
     intros n0 Hmax. apply Nat.max_lub_lt_iff in Hmax as [HN Hn0].
 
-    pose proof Hres n0 Hn0 as Hres. destruct Hres as [Hf0 Hg0].
+    pose proof Hres n0 Hn0 as Hres.
+
+    apply Nat.lt_le_incl in HN.
+    pose proof H n0 HN as [Hc_fg Hfg_c].
 
     split.
-    + apply Rlt_le. apply Rmult_lt_0_compat; lra.
-    + apply Nat.lt_le_incl in HN. pose proof H n0 HN as H.
-      destruct H as [Hc2f Hf3c2].
-      split; apply Rlt_le.
-      * apply Rlt_div_r; lra.
-      * apply Rlt_div_l; lra.
+    + apply Rlt_le. apply Rlt_div_r; assumption.
+    + apply Rle_div_l; lra.
 Qed.
 
 
@@ -269,30 +261,37 @@ Proof.
   simpl.
   unfold_ord in *.
 
-  split.
-  - left. apply pow_lt. apply lt_0_INR. apply H0.
-  - rewrite Rmult_1_l.
-    apply Rle_pow. rewrite INR_1. apply le_INR.
-    omega.
+  rewrite Rmult_1_l.
+
+  pose proof pow_le (INR n) a (pos_INR n) as Ha.
+  pose proof pow_le (INR n) b (pos_INR n) as Hb.
+  apply Rle_ge in Ha. apply Rle_ge in Hb.
+
+  pose proof Rabs_right (INR n ^ a) Ha as Habs_a.
+  pose proof Rabs_right (INR n ^ b) Hb as Habs_b.
+
+  rewrite Habs_a. rewrite Habs_b.
+
+  (* pow_le: forall (a : R) (n : nat), (0 <= a)%R -> (0 <= a ^ n)%R *)
+  apply Rle_pow. rewrite INR_1. apply le_INR.
+  - omega.
   - assumption.
 Qed.
 
 
 Theorem BigO_refl :
-  forall {A} `{Ord A} (f : A -> R),
-    (exists (n0 : A), forall (n : A), n > n0 -> (f n >= 0)%R) ->
+  forall {A} `{Ord A} (a : A) (f : A -> R),
     f ∈ O(f).
 Proof.
-  intros A HOrd f [n0 H].
+  intros A HOrd a f.
 
   unfold_complexity.
 
-  exists (exist _ 1 gt0). exists n0.
+  exists (exist _ 1 gt0). exists a.
 
-  intros n Hnn0.
-
-  simpl. unfold_ord. split; try lra.
-  apply Rge_le. auto.
+  simpl. intros n Hnn0.
+  rewrite Rmult_1_l. 
+  apply Rle_refl.
 Qed.
 
 
@@ -311,17 +310,15 @@ Proof.
 
   exists (max n1 n2). intros n Hmax. apply max_lub_lt_iff in Hmax as [Hn1 Hn2].
 
-  pose proof Hf1 n Hn1 as [Hf1_ge_0 Hf1f2].
-  pose proof Hf2 n Hn2 as [Hf2_ge_0 Hf2g].
+  pose proof Hf1 n Hn1 as Hf1f2.
+  pose proof Hf2 n Hn2 as Hf2g.
 
   simpl in *.
-  lt_fix.
+  ineq_fix.
 
-  split.
-  - assumption.
-  - apply (Rle_trans (f1 n) (c1 * f2 n)). assumption.
-    replace (c1 * c2 * g n)%R with (c1 * (c2 * g n))%R by lra.
-    apply (Rmult_le_compat_l c1 (f2 n) (c2 * g n)); lra.
+  apply (Rle_trans (Rabs (f1 n)) (c1 * Rabs (f2 n))). assumption.
+  replace (c1 * c2 * Rabs (g n))%R with (c1 * (c2 * Rabs (g n)))%R by lra.
+  apply (Rmult_le_compat_l c1 (Rabs (f2 n)) (c2 * Rabs (g n))); lra.
 Qed.
 
 
@@ -342,9 +339,9 @@ Proof.
 
   simpl in *.
   unfold_ord in *.
-  lt_fix.
 
-  lra.
+  apply (Rle_trans (Rabs (f1 n + f2 n)) (Rabs (f1 n) + Rabs (f2 n)) ((c1 + c2) * Rabs (g n))).
+  apply Rabs_triang. lra.
 Qed.
 
 
@@ -355,6 +352,5 @@ Ltac big_O_additive :=
 Theorem additions_big_o :
   (fun n => INR n + INR n + INR n + INR n + INR n + INR n) ∈ O(fun n => INR n).
 Proof.
-  big_O_additive; apply BigO_refl;
-  exists 0%nat; intros n H; apply Rle_ge; apply pos_INR.
+  big_O_additive; apply (BigO_refl 0%nat).
 Qed.
