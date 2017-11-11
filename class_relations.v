@@ -279,11 +279,11 @@ Qed.
 
 
 Theorem BigO_refl :
-  forall (f : nat -> R),
-    (exists n0, forall n, (n > n0)%nat -> (f n >= 0)%R) ->
+  forall {A} `{Ord A} (f : A -> R),
+    (exists (n0 : A), forall (n : A), n > n0 -> (f n >= 0)%R) ->
     f ∈ O(f).
 Proof.
-  intros f [n0 H].
+  intros A HOrd f [n0 H].
 
   unfold_complexity.
 
@@ -297,11 +297,11 @@ Qed.
 
 
 Theorem BigO_trans :
-  forall (f1 f2 g : nat -> R),
+  forall {A} `{Ord A} (f1 f2 g : A -> R),
     f1 ∈ O(f2) -> f2 ∈ O(g) -> f1 ∈ O(g).
 Proof.
   unfold_complexity.
-  intros f1 f2 g [[c1 Hc1] [n1 Hf1]] [[c2 Hc2] [n2 Hf2]].
+  intros A HOrd f1 f2 g [[c1 Hc1] [n1 Hf1]] [[c2 Hc2] [n2 Hf2]].
 
   simpl in *.
   unfold_ord in *.
@@ -309,7 +309,7 @@ Proof.
   assert (c1 * c2 > 0)%R as Hc by (apply Rmult_lt_0_compat; lra).
   exists (exist _ (c1 * c2)%R Hc).
 
-  exists (Nat.max n1 n2). intros n Hmax. apply Nat.max_lub_lt_iff in Hmax as [Hn1 Hn2].
+  exists (max n1 n2). intros n Hmax. apply max_lub_lt_iff in Hmax as [Hn1 Hn2].
 
   pose proof Hf1 n Hn1 as [Hf1_ge_0 Hf1f2].
   pose proof Hf2 n Hn2 as [Hf2_ge_0 Hf2g].
@@ -325,27 +325,36 @@ Proof.
 Qed.
 
 
-
-Theorem BigO_add_nat :
-  forall (f1 f2 g : nat -> R),
+Theorem BigO_add :
+  forall {A} `{Ord A} (f1 f2 g : A -> R),
     f1 ∈ O(g) -> f2 ∈ O(g) -> (fun n => f1 n + f2 n) ∈ O(g).
 Proof.
   unfold_complexity.
-  intros f1 f2 g [[c1 Hc1] [n1 Hf1]] [[c2 Hc2] [n2 Hf2]].
-
-  simpl in *.
-  unfold_ord in *.
+  intros A HOrd f1 f2 g [[c1 Hc1] [n1 Hf1]] [[c2 Hc2] [n2 Hf2]].
 
   assert (c1 + c2 > 0)%R as Hc by lra.
   exists (exist _ (c1 + c2)%R Hc).
 
-  exists (Nat.max n1 n2). intros n Hmax. apply Nat.max_lub_lt_iff in Hmax as [Hn1 Hn2].
+  exists (max n1 n2). intros n Hmax. apply max_lub_lt_iff in Hmax as [Hn1 Hn2].
 
   pose proof (Hf1 n Hn1) as Hf1.
   pose proof (Hf2 n Hn2) as Hf2.
 
   simpl in *.
+  unfold_ord in *.
   lt_fix.
 
   lra.
+Qed.
+
+
+Ltac big_O_additive :=
+  repeat apply BigO_add.
+
+
+Theorem additions_big_o :
+  (fun n => INR n + INR n + INR n + INR n + INR n + INR n) ∈ O(fun n => INR n).
+Proof.
+  big_O_additive; apply BigO_refl;
+  exists 0%nat; intros n H; apply Rle_ge; apply pos_INR.
 Qed.
