@@ -2,6 +2,7 @@ Require Import Coq.Program.Basics.
 Require Import Coq.Reals.Reals.
 Require Import Coq.Reals.RIneq.
 Require Import Coquelicot.Coquelicot.
+Require Import Coq.Logic.FunctionalExtensionality.
 Require Import classes_sigma.
 Require Import Psatz.
 Require Import Omega.
@@ -279,6 +280,48 @@ Proof.
 Qed.
 
 
+Lemma f_pow_1 :
+  (fun (x : nat) => INR x) = (fun (x : nat) => INR x ^ 1).
+Proof.
+  apply functional_extensionality.
+  intros x.
+
+  symmetry.
+  apply pow_1.
+Qed.
+
+
+Theorem BigO_power_nat_1 :
+  forall (b : nat),
+    1%nat <= b -> (fun (x : nat) => INR x) ∈ O(fun (x : nat) => (INR x) ^ b).
+Proof.
+  intros b H.
+  replace (fun (x : nat) => INR x) with (fun (x : nat) => INR x ^ 1) by (symmetry; apply f_pow_1).
+  apply BigO_power_nat.
+  assumption.
+Qed.
+
+
+Lemma f_lambda :
+  forall {A} {B} (f : A -> B),
+    (fun x => f x) = f.
+Proof.
+  intros A B f.
+  apply functional_extensionality.
+  reflexivity.
+Qed.
+
+Theorem BigO_power_nat_inr :
+  forall (b : nat),
+    1%nat <= b -> INR ∈ O(fun (x : nat) => (INR x) ^ b).
+Proof.
+  intros b H.
+  unfold_complexity.
+  apply BigO_power_nat_1.
+  assumption.
+Qed.
+
+
 Theorem BigO_refl :
   forall {A} `{Ord A} (a : A) (f : A -> R),
     f ∈ O(f).
@@ -349,8 +392,33 @@ Ltac big_O_additive :=
   repeat apply BigO_add.
 
 
+Ltac pow_match :=
+  match goal with
+  | |- INR ∈ O(fun k => INR k ^ ?b) => apply BigO_power_nat_inr; unfold_ord; omega
+  | |- (fun n => INR n) ∈ O(fun k => INR k ^ ?b) => apply BigO_power_nat_1; unfold_ord; omega
+  | |- (fun n => INR n ^ ?a) ∈ O(fun k => INR k ^ ?b) => apply BigO_power_nat; unfold_ord; omega
+  end.
+
+
+Ltac big_O_polynomial :=
+  big_O_additive; pow_match.
+
+
 Theorem additions_big_o :
   (fun n => INR n + INR n + INR n + INR n + INR n + INR n) ∈ O(fun n => INR n).
 Proof.
   big_O_additive; apply (BigO_refl 0%nat).
+Qed.
+
+Theorem additions_big_o_R :
+  (fun n => n + n + n + n + n + n) ∈ O(fun n => n).
+Proof.
+  big_O_additive; apply (BigO_refl 0%R).
+Qed.
+
+
+Theorem poly_big_o :
+  (fun k => let n := INR k in n ^ 7 + n ^ 6 + n ^ 5 + n ^ 4 + n ^ 3 + n ^ 2 + n) ∈ O(fun n => INR n ^ 20).
+Proof.
+  big_O_polynomial.
 Qed.
