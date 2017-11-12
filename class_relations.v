@@ -569,7 +569,7 @@ Ltac big_O_polynomial :=
 
 
 Ltac big_O :=
-  const_elim; big_O_polynomial.
+  const_elim; repeat big_O_polynomial.
 
 
 Theorem additions_big_o :
@@ -589,7 +589,7 @@ Qed.
 Theorem poly_big_o :
   forall c,
     c <> 0 ->
-  (fun k => let n := INR k in 3 * n ^ 7 + n ^ 6 + n ^ 5 + n ^ 4 + n ^ 3 + n ^ 2 + n) ∈ O(fun n => 7 * c * 8 * INR n ^ 20).
+  (fun k => let n := INR k in 3 * (7 * n ^ 7 + n ^ 6) + n ^ 5 + n ^ 4 + n ^ 3 + n ^ 2 + n) ∈ O(fun n => 7 * c * 8 * INR n ^ 20).
 Proof.
   intros c H.
   big_O.
