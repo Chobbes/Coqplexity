@@ -311,6 +311,7 @@ Proof.
   reflexivity.
 Qed.
 
+
 Theorem BigO_power_nat_inr :
   forall (b : nat),
     1%nat <= b -> INR ∈ O(fun (x : nat) => (INR x) ^ b).
@@ -319,6 +320,137 @@ Proof.
   unfold_complexity.
   apply BigO_power_nat_1.
   assumption.
+Qed.
+
+
+Theorem BigO_const_nat :
+  forall (c : R),
+    (fun (n : nat) => c) ∈ O(fun x => INR x).
+Proof.
+  intros c.
+  unfold_complexity.
+
+  pose proof Rmax_r (Rabs c) 1%R.
+  assert (0 < Rmax (Rabs c) 1)%R as Hmax by lra.
+
+  exists (exist _ (Rmax (Rabs c) 1) Hmax). exists 0%nat.
+
+  intros n Hn0.
+  simpl in *.
+
+  apply (Rle_trans _ (Rmax (Rabs c) 1)).
+  - apply Rmax_l.
+  - assert (1 <= n)%nat as H1n by omega.
+    apply (Rle_trans _ (Rmax (Rabs c) 1 * 1)); try lra.
+    apply Rmult_le_compat_l. lra.  apply le_INR in H1n.
+    rewrite Rabs_pos_eq. rewrite INR_1. assumption.
+    apply pos_INR.
+Qed.
+
+
+Lemma div_cancel :
+  forall c k,
+    k <> 0 ->
+    c / k * k = c.
+Proof.
+  intros c k H.
+  field. assumption.
+Qed.
+
+
+Theorem BigO_const_mult :
+  forall (k : R) f g,
+    k <> 0 ->
+    f ∈ O(g) ->
+    f ∈ O(fun n => k * g n).
+Proof.
+  unfold_complexity.
+  intros k f g Hkne0 [[c Hc] [n0 Hfg]].
+
+  simpl in *.
+
+  assert ((c / Rabs k) > 0)%R.
+  apply Rlt_div_r. pose proof Rabs_pos k.
+
+  destruct H.
+  - assumption.
+  - symmetry in H. apply Rabs_eq_0 in H. contradiction.
+  lra.
+
+  exists (exist _ (c / Rabs k) H). exists n0.
+
+  intros n H0. simpl. rewrite Rabs_mult.
+  rewrite <- Rmult_assoc.
+
+  apply Rabs_no_R0 in Hkne0.
+  rewrite div_cancel; try assumption.
+  auto.
+Qed.
+
+
+Theorem BigO_const_mult_lambda :
+  forall {A} `{Ord A} k (h f g : A -> R),
+    k <> 0 ->
+    (forall n, h n = k) ->
+    f ∈ O(g) ->
+    f ∈ O(fun n => h n * g n).
+Proof.
+  unfold_complexity.
+  intros A H k h f g Hkne0 Hhk [[c Hc] [n0 Hfg]].
+
+  simpl in *.
+
+  assert ((c / Rabs k) > 0)%R.
+  apply Rlt_div_r. pose proof Rabs_pos k.
+
+  destruct H0.
+  - assumption.
+  - symmetry in H0. apply Rabs_eq_0 in H0. contradiction.
+  lra.
+
+  exists (exist _ (c / Rabs k) H0). exists n0.
+
+  intros n H1. simpl. rewrite Rabs_mult.
+  rewrite <- Rmult_assoc.
+
+  apply Rabs_no_R0 in Hkne0.
+  rewrite Hhk.
+  rewrite div_cancel; try assumption.
+  auto.
+Qed.
+
+
+Theorem BigO_const_mult_lambda_l :
+  forall {A} `{Ord A} k (h f g : A -> R),
+    k <> 0 ->
+    (forall n, h n = k) ->
+    f ∈ O(g) ->
+    (fun n => h n * f n) ∈ O(g).
+Proof.
+  unfold_complexity.
+  intros A H k h f g Hkne0 Hhk [[c Hc] [n0 Hfg]].
+
+  simpl in *.
+
+  assert ((c * Rabs k) > 0)%R.
+  apply Rmult_lt_0_compat; try lra.  pose proof Rabs_pos k.
+
+  destruct H0.
+  - assumption.
+  - symmetry in H0. apply Rabs_eq_0 in H0. contradiction.
+
+  exists (exist _ (c * Rabs k) H0). exists n0.
+
+  intros n H1. simpl. rewrite Rabs_mult.
+  rewrite Hhk.
+  replace (c * Rabs k) with (Rabs k * c) by apply Rmult_comm.
+  rewrite Rmult_assoc.
+
+  apply Rmult_le_compat_l; try apply Rabs_pos.
+  
+  unfold_ord in *.
+  unfold Rle.
+  auto.
 Qed.
 
 
@@ -336,6 +468,19 @@ Proof.
   rewrite Rmult_1_l. 
   apply Rle_refl.
 Qed.
+
+
+Theorem BigO_refl_lambda :
+  forall {A} `{Ord A} (a : A) (f : A -> R),
+    f ∈ O(fun n => f n).
+Proof.
+  intros A HOrd a f.
+
+  unfold_complexity.
+  apply BigO_refl.
+  exact a.
+Qed.
+
 
 
 Theorem BigO_trans :
@@ -400,25 +545,52 @@ Ltac pow_match :=
   end.
 
 
+Ltac const_match :=
+  match goal with
+  | |- (fun x : nat => ?h * _) ∈ O(?f) => apply (BigO_const_mult_lambda_l h); try lra; try reflexivity
+  end.
+
+
+Ltac const_elim :=
+  repeat match goal with
+  | |- ?f ∈ O(fun x => ?h * _) => apply BigO_const_mult_lambda with (k:=h); try lra; try reflexivity
+  end.
+
+
+Ltac big_O_refl :=
+  match goal with
+  | |- ?f ∈ O(?f) => try apply (BigO_refl 0%R); try apply (BigO_refl 0%nat)
+  | |- ?f ∈ O(fun x => ?f x) => try apply (BigO_refl_lambda 0%R); try apply (BigO_refl_lambda 0%nat)
+  end.
+
+
 Ltac big_O_polynomial :=
-  big_O_additive; pow_match.
+  big_O_additive; try const_match; try pow_match; try big_O_refl.
+
+
+Ltac big_O :=
+  const_elim; big_O_polynomial.
 
 
 Theorem additions_big_o :
   (fun n => INR n + INR n + INR n + INR n + INR n + INR n) ∈ O(fun n => INR n).
 Proof.
-  big_O_additive; apply (BigO_refl 0%nat).
+  big_O.
 Qed.
+
 
 Theorem additions_big_o_R :
   (fun n => n + n + n + n + n + n) ∈ O(fun n => n).
 Proof.
-  big_O_additive; apply (BigO_refl 0%R).
+  big_O.
 Qed.
 
 
 Theorem poly_big_o :
-  (fun k => let n := INR k in n ^ 7 + n ^ 6 + n ^ 5 + n ^ 4 + n ^ 3 + n ^ 2 + n) ∈ O(fun n => INR n ^ 20).
+  forall c,
+    c <> 0 ->
+  (fun k => let n := INR k in 3 * n ^ 7 + n ^ 6 + n ^ 5 + n ^ 4 + n ^ 3 + n ^ 2 + n) ∈ O(fun n => 7 * c * 8 * INR n ^ 20).
 Proof.
-  big_O_polynomial.
+  intros c H.
+  big_O.
 Qed.
