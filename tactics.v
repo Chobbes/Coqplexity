@@ -13,8 +13,35 @@ Ltac unfold_limits :=
   unfold locally; unfold ball; simpl; unfold AbsRing_ball; simpl.
 
 
+Ltac unfold_limits_in H :=
+  unfold is_lim_seq in H; unfold eventually in H; unfold filterlim in H;
+  unfold filter_le in H; unfold filtermap in H; unfold Rbar_locally in H;
+  unfold locally in H; unfold ball in H; simpl in H; unfold AbsRing_ball in H; simpl in H.
+
+
+Ltac unfold_limits_all :=
+  unfold is_lim_seq in *; unfold eventually in *; unfold filterlim in *;
+  unfold filter_le in *; unfold filtermap in *; unfold Rbar_locally in *;
+  unfold locally in *; unfold ball in *; simpl in *; unfold AbsRing_ball in *; simpl in *.
+
+
+Tactic Notation "unfold_limits" "in" hyp(l) := unfold_limits_in l.
+Tactic Notation "unfold_limits" "in" "*" := unfold_limits_all.
+
+
 Ltac unfold_complexity :=
   unfold BigO; unfold LittleO; unfold BigOmega; unfold LittleOmega; unfold BigTheta.
+
+
+Ltac unfold_complexity_in H :=
+  unfold BigO in H; unfold LittleO in H; unfold BigOmega in H; unfold LittleOmega in H; unfold BigTheta in H.
+
+Ltac unfold_complexity_all :=
+  unfold BigO in *; unfold LittleO in *; unfold BigOmega in *; unfold LittleOmega in *; unfold BigTheta in *.
+
+
+Tactic Notation "unfold_complexity" "in" hyp(l) := unfold_complexity_in l.
+Tactic Notation "unfold_complexity" "in" "*" := unfold_complexity_all.
 
 
 Lemma lt_eq_le_R :

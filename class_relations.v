@@ -533,6 +533,184 @@ Proof.
 Qed.
 
 
+Lemma Rpower_ln  :
+  forall a b,
+    ln (Rpower a b) = b * ln a.
+Proof.
+  intros a b.
+  unfold Rpower.
+  rewrite ln_exp.
+  reflexivity.
+Qed.
+
+
+Lemma Rpower_pos :
+  forall a b,
+    0 < Rpower a b.
+Proof.
+  intros a b.
+  apply exp_pos.
+Qed.
+
+
+Lemma ln_gt_0 :
+  forall a,
+    (a > 1 -> ln a > 0)%R.
+Proof.
+  intros a H.
+  apply exp_lt_inv.
+  rewrite exp_ln; try lra.
+  rewrite exp_0. assumption.
+Qed.
+
+
+Lemma BigO_ln_x :
+  ln ∈ O(id).
+Proof.
+  unfold_complexity.
+  unfold_ord.
+  exists (exist _ 1 gt0). exists 1.
+  intros n H.
+
+  pose proof ln_gt_0 n H as Hln_pos.
+  unfold id.
+  repeat rewrite Rabs_right; try lra.
+
+  simpl.
+  left. rewrite Rmult_1_l.
+
+  apply exp_lt_inv.
+  rewrite exp_ln; try lra.
+
+  apply Rlt_trans with (r2:=1+n).
+
+  - lra.
+  - apply exp_ineq1. lra.
+Qed.
+
+
+Lemma ln_x_le_x :
+  forall x,
+    (0 < x)%R ->
+    (ln x <= x)%R.
+Proof.
+  left. apply exp_lt_inv.
+  rewrite exp_ln.
+  - apply Rlt_trans with (r2:=1+x).
+    lra. apply exp_ineq1. assumption.
+  - assumption.
+Qed.
+
+
+Ltac calvin :=
+  unfold_complexity in *;
+  unfold_ord in *;
+  (ineq_fix;
+   match goal with
+   (* Get rid of scalar identity *)
+   | |- context[1 * ?x] => repeat rewrite Rmult_1_l
+   | H : context[1 * ?x] |- _ => repeat rewrite Rmult_1_l in H
+
+   (* Unfold compositions *)
+   | |- context[compose] => repeat unfold compose
+   | H : context[compose] |- _ => repeat unfold compose
+
+   (* Destruct existential quantification *)
+   | H : exists x, _ |- _ => destruct H
+
+   (* Big O stuff *)
+   | H : ?T |- exists (sc : ?T), _ => try (exists H; calvin)
+   | |- exists (sc : {c | (0<c)%R}), _ => try (exists (exist _ 1 gt0); calvin)
+
+   | |- forall x, _ => intros
+   | |- _ -> _ => intros
+
+   (* Logs and exponents *)
+   | |- (ln ?x <= ?x)%R => apply ln_x_le_x
+
+
+   (* Rabs rules *)
+   | H : (_ < ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ <= ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ > ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ >= ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | |- context[Rabs ?x] => rewrite Rabs_right
+   | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2; clear H1
+   | |- _ => lra
+   end).
+
+
+Lemma BigO_ln :
+  forall {A} `{Ord A} (f : A -> R),
+  (exists (n0 : A), forall n, n > n0 -> 1 < f n) ->
+  compose ln f ∈ O(f).
+Proof.
+  calvin. calvin. calvin.
+
+  exists (exist _ 1 gt0).
+  calvin.
+  calvin.
+  calvin.
+
+  calvin.
+  calvin.
+  calvin.
+  calvin.
+  calvin.
+  calvin.
+
+
+  match goal with
+  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
+  end.
+  match goal with
+  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
+  end.
+    match goal with
+  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
+  end.
+  match goal with
+  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
+  end.
+  progress match goal with
+  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
+    end.
+
+  progress calvin.
+  calvin.
+  calvin.
+  calvin.
+  calvin.
+
+  rewrite Rabs_right.
+  repeat rewrite Rabs_right; try lra; auto; try assumption.
+
+  calvin. calvin. calvin.
+  lra.
+  intros A H f [n0 Hf_gt_1].
+
+  exists (exist _ 1 gt0). exists n0.
+  intros n H0. simpl.
+  ineq_fix.
+
+  repeat calvin. 
+
+  pose proof ln_gt_0 n H as Hln_pos.
+  unfold id.
+  repeat rewrite Rabs_right; try lra.
+
+  simpl.
+  left. rewrite Rmult_1_l.
+
+  apply exp_lt_inv.
+  rewrite exp_ln; try lra.
+
+  apply Rlt_trans with (r2:=1+n).
+
+  - lra.
+  - apply exp_ineq1. lra.
+Qed.
+
 Ltac big_O_additive :=
   repeat apply BigO_add.
 
