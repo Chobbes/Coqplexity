@@ -605,11 +605,14 @@ Qed.
 Ltac calvin :=
   unfold_complexity in *;
   unfold_ord in *;
-  (ineq_fix;
+  repeat (ineq_fix;
    match goal with
    (* Get rid of scalar identity *)
    | |- context[1 * ?x] => repeat rewrite Rmult_1_l
    | H : context[1 * ?x] |- _ => repeat rewrite Rmult_1_l in H
+
+   (* Identity rules *)
+   | |- context[id ?n] => replace (id n) with n by reflexivity
 
    (* Unfold compositions *)
    | |- context[compose] => repeat unfold compose
@@ -621,23 +624,48 @@ Ltac calvin :=
    (* Big O stuff *)
    | H : ?T |- exists (sc : ?T), _ => try (exists H; calvin)
    | |- exists (sc : {c | (0<c)%R}), _ => try (exists (exist _ 1 gt0); calvin)
+   | |- exists (sc : {c | (c>0)%R}), _ => try (exists (exist _ 1 gt0); calvin)
 
    | |- forall x, _ => intros
    | |- _ -> _ => intros
 
    (* Logs and exponents *)
    | |- (ln ?x <= ?x)%R => apply ln_x_le_x
+   | |- (ln ?x > 0)%R => eapply ln_gt_0
+   | |- (ln ?x >= 0)%R => left; eapply ln_gt_0
 
+   (* Powers *)
+   | |- (?n ^ ?a <= ?n ^ ?b)%R => apply Rle_pow
+   | |- (INR ?n ^ ?b >= 0)%R => apply Rle_ge; apply pow_le; apply pos_INR
+   | |- (0 <= INR ?n ^ ?b)%R => apply pow_le; apply pos_INR
+
+   (* Square roots *)
+   | |- (sqrt ?n <= ?n)%R => left; apply sqrt_less_alt
+   | |- (sqrt ?x >= 0)%R => auto using sqrt_pos, Rle_ge
+   | |- (sqrt ?x <= 0)%R => auto using sqrt_pos, Rle_ge
+
+   (* Inequality stuff *)
+   | |- (1 <= INR ?n)%R => replace 1%R with (INR 1) by reflexivity; apply le_INR; omega
+   | |- (1 < INR ?n)%R => replace 1%R with (INR 1) by reflexivity; apply lt_INR; omega
 
    (* Rabs rules *)
-   | H : (_ < ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
-   | H : (_ <= ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
-   | H : (_ > ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
-   | H : (_ >= ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ < ?x)%R |- context[Rabs ?x] => progress replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ <= ?x)%R |- context[Rabs ?x] => progress replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ > ?x)%R |- context[Rabs ?x] => progress replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ >= ?x)%R |- context[Rabs ?x] => progress replace (Rabs x) with x by (rewrite Rabs_right; lra)
    | |- context[Rabs ?x] => rewrite Rabs_right
-   | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2; clear H1
+
+   (* Modus ponens *)
+   | H1 : (forall (n : ?A), _), H2 : ?A |- _ => solve [specialize (H1 H2); calvin]
+   | H1 : ?A -> ?B, H2 : ?A |- _ => solve [specialize (H1 H2); calvin]
+
+   (* Might as well try solvers *)
+   | |- _ => lia
    | |- _ => lra
-   end).
+   | |- _ => nia
+   | |- _ => nra
+   | |- _ => omega
+end).
 
 
 Lemma BigO_ln :
@@ -645,71 +673,17 @@ Lemma BigO_ln :
   (exists (n0 : A), forall n, n > n0 -> 1 < f n) ->
   compose ln f ∈ O(f).
 Proof.
-  calvin. calvin. calvin.
-
-  exists (exist _ 1 gt0).
   calvin.
-  calvin.
-  calvin.
-
-  calvin.
-  calvin.
-  calvin.
-  calvin.
-  calvin.
-  calvin.
-
-
-  match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-  end.
-  match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-  end.
-    match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-  end.
-  match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-  end.
-  progress match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-    end.
-
-  progress calvin.
-  calvin.
-  calvin.
-  calvin.
-  calvin.
-
-  rewrite Rabs_right.
-  repeat rewrite Rabs_right; try lra; auto; try assumption.
-
-  calvin. calvin. calvin.
-  lra.
-  intros A H f [n0 Hf_gt_1].
-
-  exists (exist _ 1 gt0). exists n0.
-  intros n H0. simpl.
-  ineq_fix.
-
-  repeat calvin. 
-
-  pose proof ln_gt_0 n H as Hln_pos.
-  unfold id.
-  repeat rewrite Rabs_right; try lra.
-
-  simpl.
-  left. rewrite Rmult_1_l.
-
-  apply exp_lt_inv.
-  rewrite exp_ln; try lra.
-
-  apply Rlt_trans with (r2:=1+n).
-
-  - lra.
-  - apply exp_ineq1. lra.
 Qed.
+
+
+Theorem sqrt_big_o :
+  sqrt ∈ O(id).
+Proof.
+  calvin. exists 1.
+  calvin.
+Qed.
+
 
 Ltac big_O_additive :=
   repeat apply BigO_add.
@@ -747,7 +721,7 @@ Ltac big_O_polynomial :=
 
 
 Ltac big_O :=
-  const_elim; repeat big_O_polynomial.
+  const_elim; repeat big_O_polynomial; calvin.
 
 
 Theorem additions_big_o :
