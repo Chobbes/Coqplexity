@@ -14,6 +14,92 @@ Require Import ord.
 Local Open Scope Ord_scope.
 
 
+Lemma ln_gt_0 :
+  forall a,
+    (a > 1 -> ln a > 0)%R.
+Proof.
+  intros a H.
+  apply exp_lt_inv.
+  rewrite exp_ln; try lra.
+  rewrite exp_0. assumption.
+Qed.
+
+
+Lemma ln_x_le_x :
+  forall x,
+    (0 < x)%R ->
+    (ln x <= x)%R.
+Proof.
+  left. apply exp_lt_inv.
+  rewrite exp_ln.
+  - apply Rlt_trans with (r2:=1+x).
+    lra. apply exp_ineq1. assumption.
+  - assumption.
+Qed.
+
+
+Lemma gt0 : (1 > 0)%R. Proof. lra. Qed.
+
+
+Ltac calvin :=
+  unfold_complexity in *;
+  unfold_ord in *;
+  repeat (ineq_fix;
+   match goal with
+   (* Get rid of scalar identity *)
+   | |- context[1 * ?x] => repeat rewrite Rmult_1_l
+   | H : context[1 * ?x] |- _ => repeat rewrite Rmult_1_l in H
+
+   (* Unfold compositions *)
+   | |- context[compose] => repeat unfold compose
+   | H : context[compose] |- _ => repeat unfold compose
+
+   (* Destruct existential quantification *)
+   | H : exists x, _ |- _ => destruct H
+
+   (* Big O stuff *)
+   | H : ?T |- exists (sc : ?T), _ => try (exists H; calvin)
+   | |- exists (sc : {c | (0<c)%R}), _ => try (exists (exist _ 1 gt0); calvin)
+   | |- exists (sc : {c | (c>0)%R}), _ => try (exists (exist _ 1 gt0); calvin)
+
+   | |- forall x, _ => intros
+   | |- _ -> _ => intros
+
+   (* Logs and exponents *)
+   | |- (ln ?x <= ?x)%R => apply ln_x_le_x
+   | |- (ln ?x > 0)%R => eapply ln_gt_0
+   | |- (ln ?x >= 0)%R => left; eapply ln_gt_0
+
+   (* Powers *)
+   | |- (?n ^ ?a <= ?n ^ ?b)%R => apply Rle_pow
+   | |- (INR ?n ^ ?b >= 0)%R => apply Rle_ge; apply pow_le; apply pos_INR
+   | |- (0 <= INR ?n ^ ?b)%R => apply pow_le; apply pos_INR
+
+   (* Inequality stuff *)
+   | |- (1 <= INR ?n)%R => replace 1%R with (INR 1) by reflexivity; apply le_INR; omega
+   | |- (1 < INR ?n)%R => replace 1%R with (INR 1) by reflexivity; apply lt_INR; omega
+
+   (* Rabs rules *)
+   | H : (_ < ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ <= ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ > ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | H : (_ >= ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
+   | |- context[Rabs ?x] => rewrite Rabs_right
+
+   (* Modus ponens *)
+   | H1 : (forall (n : ?A), _), H2 : ?A |- _ => solve [specialize (H1 H2); calvin]
+   | H1 : ?A -> ?B, H2 : ?A |- _ => solve [specialize (H1 H2); calvin]
+
+   (* Might as well try solvers *)
+   | |- _ => lia
+   | |- _ => lra
+   | |- _ => nia
+   | |- _ => nra
+   | |- _ => omega
+   end).
+
+
+
 Lemma BigTheta_BigO :
   forall {A} `{Ord A} (f g : A -> R),
     f ∈ Θ(g) -> f ∈ O(g).
@@ -61,19 +147,15 @@ Proof.
     apply max_lub_lt_iff in Hmax as [Hn1 Hn2].
     destruct sc1 as [c1 Hc1]. destruct sc2 as [c2 Hc2]. simpl in *.
 
+    intuition.
     pose proof HOmega n Hn1 as Hf_c1_g.
-    pose proof HO n Hn2 as Hf_c2_g.
 
     unfold_ord in *.
-
-    split; assumption.
+    assumption.
   } {
     auto using (@BigTheta_BigO A), (@BigTheta_BigOmega A).
   }
 Qed.
-
-
-Lemma gt0 : (1 > 0)%R. Proof. lra. Qed.
 
 
 Theorem LittleO_BigO :
@@ -553,17 +635,6 @@ Proof.
 Qed.
 
 
-Lemma ln_gt_0 :
-  forall a,
-    (a > 1 -> ln a > 0)%R.
-Proof.
-  intros a H.
-  apply exp_lt_inv.
-  rewrite exp_ln; try lra.
-  rewrite exp_0. assumption.
-Qed.
-
-
 Lemma BigO_ln_x :
   ln ∈ O(id).
 Proof.
@@ -589,55 +660,12 @@ Proof.
 Qed.
 
 
-Lemma ln_x_le_x :
-  forall x,
-    (0 < x)%R ->
-    (ln x <= x)%R.
+Theorem BigO_power_nat' :
+  forall (a b : nat),
+    a <= b -> (fun (x : nat) => (INR x) ^ a) ∈ O(fun (x : nat) => (INR x) ^ b).
 Proof.
-  left. apply exp_lt_inv.
-  rewrite exp_ln.
-  - apply Rlt_trans with (r2:=1+x).
-    lra. apply exp_ineq1. assumption.
-  - assumption.
+  calvin.
 Qed.
-
-
-Ltac calvin :=
-  unfold_complexity in *;
-  unfold_ord in *;
-  (ineq_fix;
-   match goal with
-   (* Get rid of scalar identity *)
-   | |- context[1 * ?x] => repeat rewrite Rmult_1_l
-   | H : context[1 * ?x] |- _ => repeat rewrite Rmult_1_l in H
-
-   (* Unfold compositions *)
-   | |- context[compose] => repeat unfold compose
-   | H : context[compose] |- _ => repeat unfold compose
-
-   (* Destruct existential quantification *)
-   | H : exists x, _ |- _ => destruct H
-
-   (* Big O stuff *)
-   | H : ?T |- exists (sc : ?T), _ => try (exists H; calvin)
-   | |- exists (sc : {c | (0<c)%R}), _ => try (exists (exist _ 1 gt0); calvin)
-
-   | |- forall x, _ => intros
-   | |- _ -> _ => intros
-
-   (* Logs and exponents *)
-   | |- (ln ?x <= ?x)%R => apply ln_x_le_x
-
-
-   (* Rabs rules *)
-   | H : (_ < ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
-   | H : (_ <= ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
-   | H : (_ > ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
-   | H : (_ >= ?x)%R |- context[Rabs ?x] => replace (Rabs x) with x by (rewrite Rabs_right; lra)
-   | |- context[Rabs ?x] => rewrite Rabs_right
-   | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2; clear H1
-   | |- _ => lra
-   end).
 
 
 Lemma BigO_ln :
@@ -645,71 +673,31 @@ Lemma BigO_ln :
   (exists (n0 : A), forall n, n > n0 -> 1 < f n) ->
   compose ln f ∈ O(f).
 Proof.
-  calvin. calvin. calvin.
-
-  exists (exist _ 1 gt0).
   calvin.
-  calvin.
-  calvin.
-
-  calvin.
-  calvin.
-  calvin.
-  calvin.
-  calvin.
-  calvin.
-
-
-  match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-  end.
-  match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-  end.
-    match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-  end.
-  match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-  end.
-  progress match goal with
-  | H1 : (forall (n : ?A), _), H2 : ?A |- _ => pose proof H1 H2
-    end.
-
-  progress calvin.
-  calvin.
-  calvin.
-  calvin.
-  calvin.
-
-  rewrite Rabs_right.
-  repeat rewrite Rabs_right; try lra; auto; try assumption.
-
-  calvin. calvin. calvin.
-  lra.
-  intros A H f [n0 Hf_gt_1].
-
-  exists (exist _ 1 gt0). exists n0.
-  intros n H0. simpl.
-  ineq_fix.
-
-  repeat calvin. 
-
-  pose proof ln_gt_0 n H as Hln_pos.
-  unfold id.
-  repeat rewrite Rabs_right; try lra.
-
-  simpl.
-  left. rewrite Rmult_1_l.
-
-  apply exp_lt_inv.
-  rewrite exp_ln; try lra.
-
-  apply Rlt_trans with (r2:=1+n).
-
-  - lra.
-  - apply exp_ineq1. lra.
 Qed.
+
+
+(*   intros A H f [n0 Hf_gt_1]. *)
+
+(*   exists (exist _ 1 gt0). exists n0. *)
+(*   intros n H0. simpl. *)
+  
+
+(*   pose proof ln_gt_0 n H as Hln_pos. *)
+(*   unfold id. *)
+(*   repeat rewrite Rabs_right; try lra. *)
+
+(*   simpl. *)
+(*   left. rewrite Rmult_1_l. *)
+
+(*   apply exp_lt_inv. *)
+(*   rewrite exp_ln; try lra. *)
+
+(*   apply Rlt_trans with (r2:=1+n). *)
+
+(*   - lra. *)
+(*   - apply exp_ineq1. lra. *)
+(* Qed. *)
 
 Ltac big_O_additive :=
   repeat apply BigO_add.
